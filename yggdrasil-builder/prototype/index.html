@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yggdrasil Builder — Prototype</title>
+  <style>
+    :root { --bg:#0b1026; --fg:#e6e7eb; --card:#121a33; --accent:#4f9deb; --muted:#9aa0c3; }
+    *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+    body{margin:0;background:linear-gradient(180deg,#0b1026,#0a0f22);color:var(--fg);line-height:1.6}
+    header{padding:24px 16px;text-align:center;border-bottom:1px solid rgba(255,255,255,.06)}
+    header h1{margin:0;font-size:28px}
+    header p{margin:8px 0 0;color:var(--muted)}
+    main{max-width:1100px;margin:32px auto;padding:0 16px;display:grid;gap:16px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+    .card{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:12px;box-shadow:0 20px 60px rgba(15,23,42,.45);overflow:hidden}
+    .card header{padding:16px 20px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06)}
+    .card h2{margin:0;font-size:18px}
+    .card .body{padding:18px 20px;display:grid;gap:12px}
+    textarea,input,select{width:100%;background:#0e1530;color:var(--fg);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px}
+    textarea{min-height:90px;resize:vertical}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .btn{background:linear-gradient(180deg,#5db0ff,#2f7ae5);color:#fff;border:none;border-radius:999px;padding:10px 18px;font-weight:600;cursor:pointer}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.18)}
+    .tree{display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px}
+    .level{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+    .node{background:#0f1632;border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:8px 14px;color:var(--fg);font-size:14px}
+    .node.core{border-color:rgba(79,157,235,.9);box-shadow:0 0 0 4px rgba(79,157,235,.12)}
+    .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+    .metric{background:#0f1632;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:14px}
+    .metric .label{color:var(--muted);font-size:13px}
+    .metric .value{font-size:22px;margin-top:4px}
+    footer{padding:18px;text-align:center;color:var(--muted);border-top:1px solid rgba(255,255,255,.06)}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Yggdrasil Builder</h1>
+    <p>MCP Co-Design • Agent Reach • Mjolnir • Jataka • Thinking Hats • Shatkona</p>
+  </header>
+  <main>
+    <section class="card">
+      <header><h2>1) Inputs</h2></header>
+      <div class="body">
+        <label>Problem Statement</label>
+        <textarea placeholder="e.g. Automate 60% of customer support tickets with safe, on-prem MCP stack"></textarea>
+        <label>Documentation (upload mock)</label>
+        <input type="file" multiple accept=".pdf,.md,.txt,.json,.yaml,.csv,.docx">
+        <label>Constraints</label>
+        <div class="grid">
+          <input placeholder="Budget max (USD/month)">
+          <input placeholder="Max latency (ms)">
+          <select><option>Hosting: on-prem</option><option>Hosting: hybrid</option><option>Hosting: cloud</option></select>
+          <select><option>Licensing: open-source only</option><option>Licensing: mixed</option></select>
+          <select><option>Compliance: GDPR+SOC2</option><option>Compliance: HIPAA</option><option>Compliance: EU AI Act</option></select>
+        </div>
+        <div class="row"><button class="btn">Extract Intent</button><button class="btn ghost">Run Agent Reach</button></div>
+      </div>
+    </section>
+    <section class="grid">
+      <div class="card">
+        <header><h2>2) Agent Reach → Mjolnir Results</h2></header>
+        <div class="body">
+          <div class="metric"><div class="label">Candidates Found</div><div class="value">12</div></div>
+          <div class="metric"><div class="label">Avg Mjolnir Score</div><div class="value">84</div></div>
+          <div class="metric"><div class="label">Jataka Flags</div><div class="value">0</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <header><h2>3) Yggdrasil Tree (Co-Design)</h2></header>
+        <div class="tree">
+          <div class="level"><div class="node core">Orchestrator (Bifrost)</div></div>
+          <div class="level"><div class="node">Ticketing</div><div class="node">Comm</div><div class="node">Analysis</div></div>
+          <div class="level"><div class="node">Storage</div><div class="node">Logging</div><div class="node">Guardrails</div></div>
+        </div>
+        <div class="body row"><button class="btn ghost">Swap Node</button><button class="btn ghost">Prune</button><button class="btn ghost">Graft</button><button class="btn ghost">Lock</button></div>
+      </div>
+    </section>
+    <section class="card">
+      <header><h2>4) Thinking Hats • Shatkona • Outputs</h2></header>
+      <div class="body">
+        <div class="metrics">
+          <div class="metric"><div class="label">White (Facts)</div><div class="value">OK</div></div>
+          <div class="metric"><div class="label">Red (Intuition)</div><div class="value">OK</div></div>
+          <div class="metric"><div class="label">Black (Risk)</div><div class="value">OK</div></div>
+          <div class="metric"><div class="label">Yellow (Benefits)</div><div class="value">OK</div></div>
+          <div class="metric"><div class="label">Green (Alt)</div><div class="value">OK</div></div>
+          <div class="metric"><div class="label">Blue (Decision)</div><div class="value">APPROVE</div></div>
+        </div>
+        <div class="row"><button class="btn">Generate Integration Suggestions</button><button class="btn ghost">Generate Collaborative Report</button><button class="btn ghost">Open Meeting Mode</button></div>
+      </div>
+    </section>
+  </main>
+  <footer>Prototype for Yggdrasil Builder — v4.0</footer>
+</body>
+</html>
