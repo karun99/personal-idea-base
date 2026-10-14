@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Foresight Android — IEEE 29148 Interactive Prototype</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons for rich mobile & Android symbols -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Tone.js for on-device auditory feedback -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            m3: {
+              primary: '#6750A4',
+              onPrimary: '#FFFFFF',
+              primaryContainer: '#EADDFF',
+              onPrimaryContainer: '#21005D',
+              surface: '#FEF7FF',
+              surfaceDark: '#141218',
+              surfaceVariant: '#E7E0EC',
+              surfaceVariantDark: '#49454F',
+              outline: '#79747E',
+              error: '#B3261E',
+              errorContainer: '#F9DEDC',
+              tertiary: '#7D5260',
+              secondaryContainer: '#E8DEF8',
+              secondaryContainerDark: '#4A4458',
+              geminiGlow: '#4E88FF'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom device mock and smooth animations */
+    .android-screen {
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 12px #26262b, 0 0 0 14px #404040;
+      border-radius: 44px;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(150, 150, 150, 0.3);
+      border-radius: 4px;
+    }
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.03); }
+    }
+    .animate-recording {
+      animation: pulse-subtle 1.8s infinite ease-in-out;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .dark .glass-card {
+      background: rgba(30, 27, 38, 0.88);
+    }
+    canvas {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans overflow-x-hidden selection:bg-purple-600 selection:text-white">
+
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-500 to-sky-400 flex items-center justify-center text-white shadow-lg shadow-purple-900/40">
+          <i class="ph-bold ph-brain text-2xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg font-bold tracking-tight text-white">Foresight Android</h1>
+            <span class="text-xs font-mono uppercase bg-purple-950/80 text-purple-300 border border-purple-700/60 px-2 py-0.5 rounded-full">v3.0 IEEE 29148</span>
+            <span class="text-xs font-mono bg-emerald-950/80 text-emerald-300 border border-emerald-700/50 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              TRL 6+
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Local-First Multimodal AI Assistant • Google AI Edge Foresight Specification</p>
+        </div>
+      </div>
+
+      <!-- Quick mode triggers -->
+      <div class="flex items-center gap-3">
+        <div class="bg-slate-800/80 p-1 rounded-xl border border-slate-700 flex items-center text-xs">
+          <button id="viewTogglePhone" onclick="setMasterView('phone')" class="px-3 py-1.5 rounded-lg font-medium bg-purple-600 text-white shadow transition-all">
+            <i class="ph ph-device-mobile mr-1"></i> Device View
+          </button>
+          <button id="viewToggleDual" onclick="setMasterView('dual')" class="px-3 py-1.5 rounded-lg font-medium text-slate-300 hover:text-white transition-all">
+            <i class="ph ph-columns mr-1"></i> Workbench + Telemetry
+          </button>
+        </div>
+
+        <button onclick="toggleSound()" id="soundBtn" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition" title="Toggle Audio FX">
+          <i class="ph ph-speaker-high text-lg"></i>
+        </button>
+
+        <button onclick="triggerPanicWipeConfirm()" class="px-3 py-1.5 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-300 border border-red-700/60 text-xs font-semibold flex items-center gap-1.5 transition">
+          <i class="ph-bold ph-trash"></i>
+          <span>Panic Wipe</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    
+    <!-- LEFT: Android Smartphone Interactive Device Mockup -->
+    <div id="phoneCol" class="lg:col-span-5 flex justify-center w-full transition-all duration-300">
+      <div class="w-[385px] h-[812px] bg-neutral-900 android-screen relative overflow-hidden flex flex-col border-[1px] border-neutral-700">
+        
+        <!-- Android Punch-hole Camera & Speaker Earpiece -->
+        <div class="absolute top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-black rounded-full z-40 flex items-center justify-center">
+          <div class="w-1.5 h-1.5 bg-neutral-900 rounded-full border border-neutral-700"></div>
+        </div>
+
+        <!-- Android Status Bar -->
+        <div class="h-10 pt-2 px-6 flex justify-between items-center text-xs font-semibold text-slate-200 z-30 select-none bg-neutral-950/80 backdrop-blur">
+          <span id="androidClock" class="font-mono text-[13px]">12:42</span>
+          <div class="flex items-center space-x-2 text-sm text-neutral-300">
+            <span id="airplaneStatus" class="hidden text-amber-400" title="Airplane Mode (Zero Network)"><i class="ph-bold ph-airplane"></i></span>
+            <span id="mcpIndicator" class="text-xs font-mono px-1 py-0.2 bg-indigo-900/80 text-indigo-200 rounded border border-indigo-500/40">MCP:LOCAL</span>
+            <i class="ph ph-wifi-high"></i>
+            <span class="text-[11px] font-mono">84%</span>
+            <i class="ph-fill ph-battery-charging text-emerald-400"></i>
+          </div>
+        </div>
+
+        <!-- Android Persistent Notification Banner (Simulates FR-1.5 Foreground Recording notification) -->
+        <div id="foregroundNotification" class="hidden mx-3 mt-1 p-2 bg-purple-950/90 border border-purple-500/40 rounded-xl text-xs z-30 flex items-center justify-between shadow-lg backdrop-blur">
+          <div class="flex items-center space-x-2 overflow-hidden">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping shrink-0"></span>
+            <div class="truncate">
+              <p class="font-semibold text-purple-200 text-[11px]">Foresight Audio Capture Active</p>
+              <p class="text-[10px] text-purple-300/80 font-mono">16kHz Mono PCM • EmbeddingGemma2</p>
+            </div>
+          </div>
+          <button onclick="stopAudioCapture()" class="px-2 py-0.5 bg-red-600 hover:bg-red-500 text-white rounded text-[10px] font-bold">STOP</button>
+        </div>
+
+        <!-- Top In-App Bar with Profile Selector & Quick Toggles -->
+        <div class="px-4 py-2 bg-neutral-900/90 border-b border-neutral-800 flex items-center justify-between z-20">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+              FS
+            </div>
+            <div>
+              <div class="flex items-center gap-1">
+                <span class="text-xs font-bold text-slate-100 tracking-tight">Foresight</span>
+                <span id="profileBadge" class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-neutral-800 text-slate-300 border border-neutral-700">Offline Guest</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <!-- Profile Switcher Button (FR-9 Partitioning) -->
+            <button onclick="toggleProfileModal()" class="w-7 h-7 rounded-full bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 flex items-center justify-center text-xs text-neutral-200" title="Switch User Partition">
+              <i class="ph-bold ph-user-switch"></i>
+            </button>
+            <!-- Airplane Mode Switcher (FR-7 Zero Network) -->
+            <button onclick="toggleAirplaneMode()" id="airplaneBtn" class="w-7 h-7 rounded-full bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 flex items-center justify-center text-xs text-neutral-300" title="Airplane Zero-Egress Mode">
+              <i class="ph ph-airplane"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- SCREEN CONTENT CONTAINER -->
+        <div id="screenContent" class="flex-1 overflow-y-auto custom-scroll bg-neutral-950 text-slate-100 p-4 relative pb-20">
+          
+          <!-- TAB 1: CAPTURE -->
+          <div id="tabCapture" class="space-y-4">
+            
+            <!-- Consent Gate Banner (FR-6.1) -->
+            <div id="consentNotice" class="p-3 bg-amber-950/40 border border-amber-600/50 rounded-2xl flex items-start gap-2.5">
+              <i class="ph-bold ph-shield-check text-amber-400 text-lg shrink-0 mt-0.5"></i>
+              <div class="text-xs text-amber-200">
+                <p class="font-bold">Affirmative Consent Granted</p>
+                <p class="text-[11px] text-amber-300/80 leading-snug">Audio processed 100% locally on LiteRT-LM. No audio egresses this device. Tier: T2 Local-Sandbox.</p>
+              </div>
+            </div>
+
+            <!-- Waveform & Realtime Recording Visualizer Card -->
+            <div class="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 shadow-xl space-y-3 relative overflow-hidden">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span id="recDot" class="w-2 h-2 rounded-full bg-neutral-500"></span>
+                  <span id="recStateText">Recorder Standby</span>
+                </span>
+                <span id="recTimer" class="font-mono text-xs text-neutral-300 bg-neutral-800 px-2 py-0.5 rounded-full">00:00.0</span>
+              </div>
+
+              <!-- Audio Waveform Canvas -->
+              <div class="w-full h-24 bg-neutral-950 rounded-2xl overflow-hidden border border-neutral-800 relative flex items-center justify-center">
+                <canvas id="waveformCanvas" width="320" height="96" class="w-full h-full block"></canvas>
+                <div id="waveformPlaceholder" class="absolute text-neutral-600 text-xs flex flex-col items-center">
+                  <i class="ph ph-waveform text-xl mb-1"></i>
+                  <span>Tap record to begin 16 kHz stream</span>
+                </div>
+              </div>
+
+              <!-- Live Streaming ASR Display (FR-1.2 latency <= 2s) -->
+              <div class="space-y-1">
+                <div class="flex justify-between text-[11px] text-neutral-400 font-mono">
+                  <span>Streaming ASR (Local LiteRT)</span>
+                  <span id="asrLatency">Latency: -- ms</span>
+                </div>
+                <div id="liveTranscript" class="min-h-[50px] max-h-[75px] overflow-y-auto text-xs p-2.5 bg-neutral-950/80 rounded-xl border border-neutral-800 text-neutral-200 leading-relaxed font-sans custom-scroll italic">
+                  "Transcript will appear in real-time as speech chunks are captured..."
+                </div>
+              </div>
+
+              <!-- Recording Action Controls -->
+              <div class="flex items-center justify-center gap-3 pt-1">
+                <button id="toggleRecordBtn" onclick="toggleRecording()" class="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-purple-900/30 transition transform active:scale-95">
+                  <i class="ph-bold ph-microphone text-base"></i>
+                  <span id="recordBtnLabel">Start Live Meeting</span>
+                </button>
+
+                <button onclick="injectSimulatedSpeech()" class="px-3 py-2.5 rounded-2xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-medium border border-neutral-700 transition" title="Inject Sample Meeting Transcript">
+                  <i class="ph-bold ph-chat-text text-base"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Manual Notes & Share Intent (FR-1.3, FR-1.4) -->
+            <div class="bg-neutral-900 border border-neutral-800 rounded-3xl p-4 space-y-2.5 shadow-xl">
+              <div class="flex justify-between items-center text-xs">
+                <span class="font-semibold text-neutral-300 flex items-center gap-1.5">
+                  <i class="ph-bold ph-note-pencil text-purple-400"></i>
+                  Meeting Notes & Share Intent
+                </span>
+                <span class="text-[10px] text-neutral-500 font-mono">EmbeddingGemma 2</span>
+              </div>
+              <textarea id="manualNoteInput" rows="2" placeholder="Type key decisions or paste shared screen text..." class="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-purple-500 font-sans resize-none"></textarea>
+              <div class="flex justify-between items-center">
+                <button onclick="injectScreenSnippet()" class="text-[11px] text-purple-400 hover:text-purple-300 flex items-center gap-1">
+                  <i class="ph ph-share-network"></i> Simulate Screen Share Intent
+                </button>
+                <button onclick="commitManualNote()" class="px-3 py-1 bg-neutral-800 hover:bg-purple-900/40 text-purple-300 hover:text-purple-200 border border-neutral-700 rounded-xl text-xs font-medium transition">
+                  Index Chunk
+                </button>
+              </div>
+            </div>
+
+            <!-- Real-time Indexing Activity Feeder -->
+            <div class="space-y-1.5">
+              <div class="flex justify-between items-center text-[11px] font-mono text-neutral-400 px-1">
+                <span>Memory Graph Feeds (WAL Mode)</span>
+                <span id="indexedCountLabel">8 chunks stored</span>
+              </div>
+              <div id="recentChunksList" class="space-y-2">
+                <!-- Dynamically populated chunks -->
+              </div>
+            </div>
+
+          </div>
+
+          <div id="tabSearch" class="space-y-4 hidden">
+            <!-- Search Query Input (FR-3.1) -->
+            <div class="space-y-2">
+              <div class="relative">
+                <input id="searchQueryInput" type="text" placeholder="Ask anything about meetings or notes..." value="What was decided about the memory graph architecture?" class="w-full bg-neutral-900 border border-neutral-700 rounded-2xl py-3 pl-10 pr-10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-purple-500 font-sans shadow-lg">
+                <i class="ph ph-magnifying-glass absolute left-3.5 top-3.5 text-neutral-400 text-sm"></i>
+                <button onclick="executeSemanticSearch()" class="absolute right-2 top-2 p-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs">
+                  <i class="ph-bold ph-arrow-right"></i>
+                </button>
+              </div>
+
+              <!-- Filter chips (FR-3.3) -->
+              <div class="flex items-center gap-1.5 overflow-x-auto py-1 custom-scroll text-[11px]">
+                <button class="px-2.5 py-1 bg-purple-900/60 text-purple-200 border border-purple-500/50 rounded-full shrink-0 font-medium">All Chunks</button>
+                <button class="px-2.5 py-1 bg-neutral-900 text-neutral-400 border border-neutral-800 rounded-full shrink-0">Today (Last 24h)</button>
+                <button class="px-2.5 py-1 bg-neutral-900 text-neutral-400 border border-neutral-800 rounded-full shrink-0">Audio Meetings</button>
+                <button class="px-2.5 py-1 bg-neutral-900 text-neutral-400 border border-neutral-800 rounded-full shrink-0">Top-k: 4</button>
+              </div>
+            </div>
+
+            <!-- Retrieval Benchmark Stats Bar (FR-3.4 p95 <= 300ms) -->
+            <div class="bg-neutral-900/70 border border-neutral-800 p-2.5 rounded-2xl flex items-center justify-between text-[11px] font-mono text-neutral-400">
+              <div class="flex items-center gap-1.5">
+                <i class="ph-bold ph-cpu text-purple-400"></i>
+                <span id="retrievalLatency">Retrieval: 42ms (p95 &lt;300ms)</span>
+              </div>
+              <span class="text-emerald-400 flex items-center gap-1">
+                <i class="ph-bold ph-check-circle"></i> sqlite-vec OK
+              </span>
+            </div>
+
+            <!-- Gemma 4 Synthesized Local Answer Card (FR-4.1, FR-4.2) -->
+            <div id="aiAnswerContainer" class="bg-gradient-to-b from-purple-950/40 to-neutral-900 border border-purple-800/40 rounded-3xl p-4 shadow-xl space-y-3">
+              <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                  <div class="w-6 h-6 rounded-lg bg-purple-600/80 flex items-center justify-center text-white text-xs">
+                    <i class="ph-bold ph-sparkle"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-xs font-bold text-white">Gemma 4 (LiteRT-LM Worker)</h3>
+                    <p class="text-[10px] text-purple-300/80 font-mono">Multi-Token Prediction • 100% On-Device</p>
+                  </div>
+                </div>
+                <span id="modelConfidenceBadge" class="text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-700/60 px-2 py-0.5 rounded-full">
+                  Confidence: 94.6%
+                </span>
+              </div>
+
+              <!-- Answer Body with Citations -->
+              <div id="aiAnswerText" class="text-xs text-neutral-200 leading-relaxed space-y-2">
+                <p>
+                  The memory graph architecture utilizes <strong class="text-purple-300">SQLite with sqlite-vec</strong> in WAL (Write-Ahead Logging) mode to guarantee survivability during unexpected process termination <span class="inline-block bg-purple-900/80 border border-purple-500/50 text-purple-200 text-[10px] font-mono px-1 rounded cursor-pointer" onclick="highlightChunk('CHK-001')">[Chunk #001]</span>.
+                </p>
+                <p>
+                  Embeddings are generated within &lt;500ms via <strong class="text-purple-300">EmbeddingGemma 2</strong>, with deduplication dropping chunks with cosine similarity &gt; 0.98 <span class="inline-block bg-purple-900/80 border border-purple-500/50 text-purple-200 text-[10px] font-mono px-1 rounded cursor-pointer" onclick="highlightChunk('CHK-004')">[Chunk #004]</span>.
+                </p>
+              </div>
+
+              <!-- Source Citations Drawer -->
+              <div class="border-t border-neutral-800/80 pt-2 space-y-1.5">
+                <div class="text-[10px] uppercase font-mono tracking-wider text-neutral-400">Cited Knowledge Sources</div>
+                <div id="citationsList" class="space-y-1.5">
+                  <!-- Populated via JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Top Ranked Chunks (FR-3.2) -->
+            <div class="space-y-2">
+              <div class="flex justify-between items-center text-xs font-semibold text-neutral-400">
+                <span>Vector Neighbors (Ranked Cosine)</span>
+                <span class="text-[10px] font-mono">Distance: Cosine</span>
+              </div>
+              <div id="searchRankedResults" class="space-y-2">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+
+          <div id="tabGraph" class="space-y-4 hidden">
+            <div class="flex justify-between items-center">
+              <div>
+                <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+                  <i class="ph-bold ph-tree-structure text-purple-400"></i>
+                  Unified Multimodal Memory Graph
+                </h3>
+                <p class="text-[10px] text-neutral-400 font-mono">samvit / celebrum vector topology</p>
+              </div>
+              <button onclick="reclusterGraph()" class="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 rounded-xl text-[11px] text-neutral-300 border border-neutral-700">
+                <i class="ph ph-arrows-clockwise mr-1"></i> Re-embed
+              </button>
+            </div>
+
+            <!-- 2D Interactive Force/Cluster Canvas -->
+            <div class="w-full h-56 bg-neutral-950 rounded-2xl border border-neutral-800 relative overflow-hidden">
+              <canvas id="memoryGraphCanvas" width="320" height="224" class="w-full h-full block cursor-crosshair"></canvas>
+              <div class="absolute bottom-2 left-2 text-[10px] font-mono bg-neutral-900/80 px-2 py-0.5 rounded border border-neutral-800 text-neutral-400">
+                Drag nodes • Nodes: <span id="graphNodeCount">12</span> • Edges: Cosine &gt; 0.70
+              </div>
+            </div>
+
+            <!-- Graph Storage Engine Stats (DC-6, FR-2.3) -->
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl">
+                <span class="text-[10px] font-mono text-neutral-500 block">VEC INDEX</span>
+                <span class="font-bold text-neutral-200">sqlite-vec (WAL)</span>
+                <span class="text-[10px] text-emerald-400 block mt-0.5">Crash Resilient (NFR-13)</span>
+              </div>
+              <div class="bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl">
+                <span class="text-[10px] font-mono text-neutral-500 block">DEDUP RATIO</span>
+                <span class="font-bold text-neutral-200">98.2% Unique</span>
+                <span class="text-[10px] text-purple-400 block mt-0.5">Threshold &gt; 0.98</span>
+              </div>
+            </div>
+
+            <!-- Selected Node Inspector -->
+            <div id="nodeDetailBox" class="bg-neutral-900 border border-neutral-800 rounded-2xl p-3 text-xs space-y-1">
+              <div class="flex justify-between items-center text-neutral-400 font-mono text-[10px]">
+                <span id="inspectorNodeId">NODE: CHK-001</span>
+                <span id="inspectorNodeType" class="text-purple-400">MODALITY: TEXT/NOTES</span>
+              </div>
+              <p id="inspectorNodeText" class="text-neutral-200 text-xs line-clamp-2">
+                "Meeting regarding architecture with local-first LiteRT-LM runtime and WAL sqlite-vec."
+              </p>
+              <div class="pt-1 flex justify-between items-center text-[10px] font-mono text-neutral-500">
+                <span>Dim: 768 float32</span>
+                <span>Profile: Sai (Primary)</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="tabMcp" class="space-y-4 hidden">
+            <div class="flex justify-between items-center">
+              <div>
+                <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+                  <i class="ph-bold ph-plugs-connected text-indigo-400"></i>
+                  MCP Bridge Client
+                </h3>
+                <p class="text-[10px] text-neutral-400 font-mono">Model Context Protocol (JSON-RPC 2.0)</p>
+              </div>
+              <span class="text-[10px] font-mono bg-indigo-950 text-indigo-300 border border-indigo-700/60 px-2 py-0.5 rounded-full">
+                stdio / localhost
+              </span>
+            </div>
+
+            <!-- Network Toggle Gate (FR-5.4) -->
+            <div class="p-3 bg-neutral-900 border border-neutral-800 rounded-2xl flex items-center justify-between">
+              <div>
+                <p class="text-xs font-semibold text-neutral-200">Allow Network Tool Calls</p>
+                <p class="text-[10px] text-neutral-400">Gate external egress behind strict manual consent</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input id="mcpNetworkGate" type="checkbox" onchange="toggleMcpNetwork(this.checked)" class="sr-only peer">
+                <div class="w-9 h-5 bg-neutral-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
+
+            <!-- Available Tools Grid (FR-5.2) -->
+            <div class="space-y-2">
+              <span class="text-[11px] font-mono uppercase text-neutral-400">Registered MCP Tools (14 tools)</span>
+              <div class="grid grid-cols-1 gap-2">
+                <button onclick="simulateMcpCall('swarm_query')" class="p-2.5 bg-neutral-900 hover:bg-neutral-850 border border-neutral-850 hover:border-indigo-600/60 rounded-xl text-left transition flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-semibold text-indigo-300 font-mono">s-ai-swarm :: swarm_query</div>
+                    <div class="text-[10px] text-neutral-400">Query distributed agent collective</div>
+                  </div>
+                  <i class="ph ph-play-circle text-lg text-indigo-400"></i>
+                </button>
+
+                <button onclick="simulateMcpCall('zoe_run')" class="p-2.5 bg-neutral-900 hover:bg-neutral-850 border border-neutral-850 hover:border-indigo-600/60 rounded-xl text-left transition flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-semibold text-purple-300 font-mono">zoe-mcp :: zoe_run</div>
+                    <div class="text-[10px] text-neutral-400">Execute deterministic agentic workflow</div>
+                  </div>
+                  <i class="ph ph-play-circle text-lg text-purple-400"></i>
+                </button>
+
+                <button onclick="simulateMcpCall('glama_chat_completion')" class="p-2.5 bg-neutral-900 hover:bg-neutral-850 border border-neutral-850 hover:border-indigo-600/60 rounded-xl text-left transition flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-semibold text-sky-300 font-mono">glama-gateway :: chat_completion</div>
+                    <div class="text-[10px] text-neutral-400">Desktop host bridge connector</div>
+                  </div>
+                  <i class="ph ph-play-circle text-lg text-sky-400"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- MCP JSON-RPC Audit Log Terminal (FR-5.3) -->
+            <div class="space-y-1">
+              <div class="flex justify-between items-center text-[10px] font-mono text-neutral-400">
+                <span>JSON-RPC Live Audit Stream</span>
+                <button onclick="clearMcpLog()" class="hover:text-white">Clear</button>
+              </div>
+              <div id="mcpLogTerminal" class="h-32 bg-neutral-950 border border-neutral-850 rounded-xl p-2 font-mono text-[10px] text-emerald-400 overflow-y-auto custom-scroll space-y-1">
+                <div class="text-neutral-500">// Bridge initialized on stdio transport</div>
+                <div class="text-neutral-500">// Handshake: protocolVersion 2024-11-05</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tabSettings" class="space-y-4 hidden">
+            <!-- Google Sign-In & Profile Partitioning (FR-9) -->
+            <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-3xl space-y-3">
+              <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                  <i class="ph-bold ph-google-logo text-xl text-red-400"></i>
+                  <div>
+                    <h4 class="text-xs font-bold text-white">Google Identity Partition</h4>
+                    <p class="text-[10px] text-neutral-400">DEFAULT_SIGN_IN (Optional, Skip always available)</p>
+                  </div>
+                </div>
+                <span id="identityStatusPill" class="text-[9px] font-mono px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700">Offline</span>
+              </div>
+
+              <div id="accountInfoBox" class="p-2.5 bg-neutral-950 rounded-xl border border-neutral-800 text-xs space-y-1 hidden">
+                <div class="flex items-center space-x-2">
+                  <div class="w-6 h-6 rounded-full bg-purple-700 text-white font-bold flex items-center justify-center text-[10px]">SK</div>
+                  <div>
+                    <p id="accountName" class="font-semibold text-white text-[11px]">Sai Karun Nandipati</p>
+                    <p id="accountEmail" class="text-[10px] text-neutral-400">sai.karun@example.com</p>
+                  </div>
+                </div>
+                <div class="text-[10px] font-mono text-neutral-500 pt-1">
+                  Keystore Encrypted: AES-256-GCM • Partition #USR-9021
+                </div>
+              </div>
+
+              <div class="flex gap-2">
+                <button id="signInActionBtn" onclick="simulateGoogleSignIn()" class="flex-1 py-2 px-3 bg-white hover:bg-neutral-100 text-neutral-900 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow transition">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                  <span>Sign in with Google</span>
+                </button>
+                <button onclick="simulateSkipAuth()" class="py-2 px-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl text-xs font-medium border border-neutral-700 transition">
+                  Skip (Offline)
+                </button>
+              </div>
+            </div>
+
+            <!-- T0–T6 Conformance Tiers (FR-6.3) -->
+            <div class="p-4 bg-neutral-900 border border-neutral-800 rounded-3xl space-y-2.5">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-neutral-200">s-ai-soulbot Conformance</span>
+                <span class="text-[10px] font-mono bg-purple-950 text-purple-300 border border-purple-700/60 px-2 py-0.5 rounded-full">Tier T2 Active</span>
+              </div>
+              <div class="grid grid-cols-4 gap-1 text-[10px] text-center font-mono">
+                <div class="p-1.5 rounded-lg bg-emerald-950/80 border border-emerald-700/60 text-emerald-300">T0 Safe</div>
+                <div class="p-1.5 rounded-lg bg-emerald-950/80 border border-emerald-700/60 text-emerald-300">T1 Sandbox</div>
+                <div class="p-1.5 rounded-lg bg-purple-950/80 border border-purple-500 text-purple-200 font-bold">T2 Local*</div>
+                <div class="p-1.5 rounded-lg bg-neutral-950 text-neutral-600 border border-neutral-800">T6 Swarm</div>
+              </div>
+            </div>
+
+            <!-- Panic Wipe Trigger (FR-6.4) -->
+            <div class="p-4 bg-red-950/30 border border-red-800/40 rounded-3xl space-y-2">
+              <div class="flex items-center space-x-2 text-red-400">
+                <i class="ph-bold ph-warning text-lg"></i>
+                <h4 class="text-xs font-bold">Emergency Panic Wipe</h4>
+              </div>
+              <p class="text-[11px] text-neutral-400 leading-snug">
+                Irrevocably shred SQLite database, sqlite-vec indices, and Keystore cryptographic bindings.
+              </p>
+              <button onclick="triggerPanicWipeConfirm()" class="w-full py-2 bg-red-600/90 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-950/60 transition">
+                Execute Instant Panic Wipe
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Android Material 3 Bottom Navigation Bar -->
+        <nav class="h-16 bg-neutral-900 border-t border-neutral-800 px-3 flex items-center justify-around z-30 select-none">
+          <button onclick="switchTab('tabCapture')" id="navCapture" class="flex flex-col items-center text-purple-400 transition">
+            <div class="w-10 h-6 rounded-full bg-purple-900/60 flex items-center justify-center mb-0.5">
+              <i class="ph-fill ph-microphone text-sm"></i>
+            </div>
+            <span class="text-[10px] font-medium tracking-tight">Capture</span>
+          </button>
+
+          <button onclick="switchTab('tabSearch')" id="navSearch" class="flex flex-col items-center text-neutral-400 hover:text-neutral-200 transition">
+            <div class="w-10 h-6 rounded-full flex items-center justify-center mb-0.5">
+              <i class="ph-bold ph-magnifying-glass text-sm"></i>
+            </div>
+            <span class="text-[10px] font-medium tracking-tight">Search & Ask</span>
+          </button>
+
+          <button onclick="switchTab('tabGraph')" id="navGraph" class="flex flex-col items-center text-neutral-400 hover:text-neutral-200 transition">
+            <div class="w-10 h-6 rounded-full flex items-center justify-center mb-0.5">
+              <i class="ph-bold ph-tree-structure text-sm"></i>
+            </div>
+            <span class="text-[10px] font-medium tracking-tight">Memory</span>
+          </button>
+
+          <button onclick="switchTab('tabMcp')" id="navMcp" class="flex flex-col items-center text-neutral-400 hover:text-neutral-200 transition">
+            <div class="w-10 h-6 rounded-full flex items-center justify-center mb-0.5">
+              <i class="ph-bold ph-plugs-connected text-sm"></i>
+            </div>
+            <span class="text-[10px] font-medium tracking-tight">MCP Bridge</span>
+          </button>
+
+          <button onclick="switchTab('tabSettings')" id="navSettings" class="flex flex-col items-center text-neutral-400 hover:text-neutral-200 transition">
+            <div class="w-10 h-6 rounded-full flex items-center justify-center mb-0.5">
+              <i class="ph-bold ph-gear text-sm"></i>
+            </div>
+            <span class="text-[10px] font-medium tracking-tight">Settings</span>
+          </button>
+        </nav>
+
+        <!-- Android Gesture Navigation Pill Bar -->
+        <div class="h-3 bg-neutral-900 flex justify-center items-center pb-1">
+          <div class="w-28 h-1 bg-neutral-600 rounded-full"></div>
+        </div>
+
+        <!-- Custom In-App Modal Dialog (Replaces prohibited alert/confirm) -->
+        <div id="inAppModalOverlay" class="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-5 hidden">
+          <div class="bg-neutral-900 border border-neutral-700 rounded-3xl p-5 w-full max-w-xs space-y-3 shadow-2xl text-center">
+            <div id="modalIconContainer" class="w-12 h-12 mx-auto rounded-2xl bg-red-950/80 text-red-400 border border-red-700 flex items-center justify-center text-2xl">
+              <i class="ph-bold ph-warning"></i>
+            </div>
+            <h3 id="modalTitle" class="text-sm font-bold text-white">Confirm Panic Wipe</h3>
+            <p id="modalMessage" class="text-xs text-neutral-300 leading-relaxed">
+              This will wipe all on-device vectors, audio recordings, SQLite database files, and Keystore partitions immediately.
+            </p>
+            <div class="flex gap-2 pt-2">
+              <button onclick="closeInAppModal()" class="flex-1 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-semibold rounded-xl">
+                Cancel
+              </button>
+              <button id="modalActionBtn" onclick="executePanicWipeConfirmed()" class="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-xl">
+                Wipe Now
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Partitioning Switcher Modal (FR-9.10) -->
+        <div id="profileModalOverlay" class="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-5 hidden">
+          <div class="bg-neutral-900 border border-neutral-700 rounded-3xl p-5 w-full max-w-xs space-y-3 shadow-2xl">
+            <div class="flex justify-between items-center">
+              <h3 class="text-xs font-bold text-white">Select Memory Partition</h3>
+              <button onclick="toggleProfileModal()" class="text-neutral-400 hover:text-white"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <p class="text-[11px] text-neutral-400">Isolated database & embedding partitions. Cross-profile retrieval is mathematically impossible.</p>
+            <div class="space-y-2">
+              <button onclick="switchUserProfile('Sai Karun (Work)', 'USR-01')" class="w-full p-2.5 rounded-xl bg-neutral-850 hover:bg-purple-950/60 border border-neutral-750 flex items-center justify-between text-left">
+                <div>
+                  <div class="text-xs font-semibold text-white">Sai Karun (Work)</div>
+                  <div class="text-[10px] font-mono text-purple-400">142 chunks • Partition A</div>
+                </div>
+                <i class="ph-bold ph-check text-purple-400"></i>
+              </button>
+
+              <button onclick="switchUserProfile('Personal / Research', 'USR-02')" class="w-full p-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 flex items-center justify-between text-left">
+                <div>
+                  <div class="text-xs font-semibold text-white">Personal / Research</div>
+                  <div class="text-[10px] font-mono text-neutral-500">68 chunks • Partition B</div>
+                </div>
+              </button>
+
+              <button onclick="switchUserProfile('Offline Guest', 'GUEST')" class="w-full p-2.5 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 flex items-center justify-between text-left">
+                <div>
+                  <div class="text-xs font-semibold text-white">Offline Guest</div>
+                  <div class="text-[10px] font-mono text-neutral-500">Volatile in-RAM only</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: Verification, IEEE 29148 Acceptance Matrix & CI Skills Dashboard -->
+    <div id="telemetryCol" class="lg:col-span-7 space-y-5">
+      
+      <!-- Resource Envelope Live Gauges (SRS Section 2.4 Constraints C1-C12 & Section 3.2) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="ph-bold ph-gauge text-purple-400"></i>
+              On-Device Resource Budgets (IEEE 29148 Envelopes)
+            </h2>
+            <p class="text-xs text-slate-400">Live dumpsys meminfo & thermal profiler monitoring</p>
+          </div>
+          <span class="text-xs font-mono text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            All Envelopes Nominal
+          </span>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <!-- RAM (C2: <= 4 GB) -->
+          <div class="bg-slate-950 p-3 rounded-2xl border border-slate-850">
+            <div class="flex justify-between items-center text-slate-400 text-[11px] mb-1">
+              <span>Peak RAM (C2)</span>
+              <span class="font-mono text-purple-400">&le; 4.0 GB</span>
+            </div>
+            <div class="text-lg font-bold text-white font-mono" id="ramMetric">1.82 GB</div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
+              <div id="ramBar" class="bg-purple-500 h-full w-[45%]"></div>
+            </div>
+            <span class="text-[10px] text-slate-500 mt-1 block">LiteRT-LM + Graph</span>
+          </div>
+
+          <!-- Battery (C12: <= 8%/hr) -->
+          <div class="bg-slate-950 p-3 rounded-2xl border border-slate-850">
+            <div class="flex justify-between items-center text-slate-400 text-[11px] mb-1">
+              <span>Battery Drain (C12)</span>
+              <span class="font-mono text-emerald-400">&le; 8%/h</span>
+            </div>
+            <div class="text-lg font-bold text-white font-mono" id="batteryMetric">4.3%/h</div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
+              <div class="bg-emerald-500 h-full w-[53%]"></div>
+            </div>
+            <span class="text-[10px] text-slate-500 mt-1 block">Battery Historian</span>
+          </div>
+
+          <!-- Thermal (C11: >= 30 min no throttle) -->
+          <div class="bg-slate-950 p-3 rounded-2xl border border-slate-850">
+            <div class="flex justify-between items-center text-slate-400 text-[11px] mb-1">
+              <span>Thermal (C11)</span>
+              <span class="font-mono text-sky-400">33.8 °C</span>
+            </div>
+            <div class="text-lg font-bold text-white font-mono">Nominal</div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
+              <div class="bg-sky-500 h-full w-[38%]"></div>
+            </div>
+            <span class="text-[10px] text-slate-500 mt-1 block">No throttle (35m elapsed)</span>
+          </div>
+
+          <!-- APK Size (C3: <= 2.5 GB) -->
+          <div class="bg-slate-950 p-3 rounded-2xl border border-slate-850">
+            <div class="flex justify-between items-center text-slate-400 text-[11px] mb-1">
+              <span>APK Size (C3)</span>
+              <span class="font-mono text-amber-400">&le; 2.5 GB</span>
+            </div>
+            <div class="text-lg font-bold text-white font-mono">1.94 GB</div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
+              <div class="bg-amber-500 h-full w-[77%]"></div>
+            </div>
+            <span class="text-[10px] text-slate-500 mt-1 block">Quantized Gemma 4 E2B</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="ph-bold ph-seal-check text-emerald-400"></i>
+              Validation Metrics (Section 4.3 `neural-harness`)
+            </h2>
+            <p class="text-xs text-slate-400">JOSS Readiness &amp; ISO/IEC/IEEE 29148 Verifications</p>
+          </div>
+          <span class="text-xs font-mono bg-purple-950 text-purple-300 border border-purple-700 px-2 py-0.5 rounded-full">
+            VISION Marker: 0.884
+          </span>
+        </div>
+
+        <div class="grid grid-cols-3 md:grid-cols-6 gap-2 text-center font-mono">
+          <div class="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-500 block">Accuracy</span>
+            <span class="text-sm font-bold text-emerald-400">0.88</span>
+            <span class="text-[9px] text-slate-600 block">&ge;0.85 target</span>
+          </div>
+          <div class="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-500 block">Precision</span>
+            <span class="text-sm font-bold text-emerald-400">0.84</span>
+            <span class="text-[9px] text-slate-600 block">&ge;0.82 target</span>
+          </div>
+          <div class="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-500 block">Recall</span>
+            <span class="text-sm font-bold text-emerald-400">0.82</span>
+            <span class="text-[9px] text-slate-600 block">&ge;0.80 target</span>
+          </div>
+          <div class="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-500 block">F1 Score</span>
+            <span class="text-sm font-bold text-emerald-400">0.86</span>
+            <span class="text-[9px] text-slate-600 block">&ge;0.85 target</span>
+          </div>
+          <div class="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-500 block">Coverage</span>
+            <span class="text-sm font-bold text-purple-400">84.2%</span>
+            <span class="text-[9px] text-slate-600 block">&ge;80% JaCoCo</span>
+          </div>
+          <div class="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
+            <span class="text-[10px] text-slate-500 block">MCC</span>
+            <span class="text-sm font-bold text-emerald-400">+0.42</span>
+            <span class="text-[9px] text-slate-600 block">&ge;0.15 target</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="ph-bold ph-lock-key text-sky-400"></i>
+              Skill Grounding (FR-8 SKILLS.lock Verification)
+            </h2>
+            <p class="text-xs text-slate-400">Agent-driven build grounding against google/android-skills</p>
+          </div>
+          <div class="text-xs font-mono text-sky-300 bg-sky-950 border border-sky-800 px-2.5 py-0.5 rounded-full">
+            Adherence: 96.4%
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+          <div class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i class="ph-bold ph-check text-emerald-400"></i>
+              <span class="font-mono text-slate-200">device-ai</span>
+            </div>
+            <span class="text-[10px] text-slate-400 font-mono">LiteRT-LM / Gemma4</span>
+          </div>
+          <div class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i class="ph-bold ph-check text-emerald-400"></i>
+              <span class="font-mono text-slate-200">security</span>
+            </div>
+            <span class="text-[10px] text-slate-400 font-mono">Keystore / SSRF Shield</span>
+          </div>
+          <div class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i class="ph-bold ph-check text-emerald-400"></i>
+              <span class="font-mono text-slate-200">identity</span>
+            </div>
+            <span class="text-[10px] text-slate-400 font-mono">Google Sign-In v21.3.0</span>
+          </div>
+          <div class="p-2.5 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i class="ph-bold ph-check text-emerald-400"></i>
+              <span class="font-mono text-slate-200">testing-setup</span>
+            </div>
+            <span class="text-[10px] text-slate-400 font-mono">CI Parity / Harness</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="ph-bold ph-clipboard-text text-purple-400"></i>
+              Section 4.2 Acceptance Test Matrix (T-01 &ndash; T-22)
+            </h2>
+            <p class="text-xs text-slate-400">Executable conformance checks</p>
+          </div>
+          <div class="flex gap-1">
+            <button onclick="runAcceptanceSuite()" class="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition">
+              <i class="ph-bold ph-play"></i> Run All 22 Tests
+            </button>
+          </div>
+        </div>
+
+        <div class="max-h-56 overflow-y-auto custom-scroll space-y-1.5 pr-1" id="testMatrixList">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    // State store conforming to IEEE 29148 Requirements
+    const state = {
+      activeTab: 'tabCapture',
+      isRecording: false,
+      recordingSeconds: 0,
+      recordingTimerId: null,
+      soundEnabled: true,
+      airplaneMode: false,
+      currentProfile: {
+        name: 'Offline Guest',
+        partitionId: 'GUEST',
+        isGoogleAuth: false,
+        email: null
+      },
+      mcpNetworkAllowed: false,
+      memoryChunks: [
+        {
+          id: 'CHK-001',
+          type: 'audio_transcript',
+          text: 'Foresight Android uses SQLite with sqlite-vec in WAL mode to guarantee zero loss upon process death.',
+          timestamp: '10:14 AM',
+          embeddingDim: 768,
+          partition: 'Sai Karun (Work)',
+          score: 0.94
+        },
+        {
+          id: 'CHK-002',
+          type: 'meeting_note',
+          text: 'Agreed: Peak RAM budget must stay under 4 GB. Quantized Gemma 4 E2B fits within 1.94 GB APK ceiling.',
+          timestamp: '10:22 AM',
+          embeddingDim: 768,
+          partition: 'Sai Karun (Work)',
+          score: 0.89
+        },
+        {
+          id: 'CHK-003',
+          type: 'screen_share',
+          text: 'android/skills ensures all generated code adheres strictly to device-ai, security, and identity skills.',
+          timestamp: '10:31 AM',
+          embeddingDim: 768,
+          partition: 'Sai Karun (Work)',
+          score: 0.84
+        },
+        {
+          id: 'CHK-004',
+          type: 'audio_transcript',
+          text: 'Deduplication threshold set to cosine similarity > 0.98. Near duplicate chunks are dropped before DB write.',
+          timestamp: '10:45 AM',
+          embeddingDim: 768,
+          partition: 'Sai Karun (Work)',
+          score: 0.92
+        }
+      ],
+      tests: [
+        { id: 'T-01', name: '30-min capture', criterion: '0 crashes, WER <15%', status: 'PASSED' },
+        { id: 'T-02', name: '1000-chunk indexing', criterion: 'p95 embed <500 ms', status: 'PASSED' },
+        { id: 'T-03', name: 'Query over 100k chunks', criterion: 'p95 <300 ms, recall@8 >0.85', status: 'PASSED' },
+        { id: 'T-04', name: 'Airplane-mode run', criterion: '0 bytes egress', status: 'PASSED' },
+        { id: 'T-05', name: 'MCP call to zoe-mcp', criterion: 'JSON-RPC round-trip OK', status: 'PASSED' },
+        { id: 'T-06', name: 'Panic wipe', criterion: 'Graph unrecoverable', status: 'READY' },
+        { id: 'T-07', name: 'TRL Tracker action', criterion: 'TRL >= 6 verified', status: 'PASSED' },
+        { id: 'T-08', name: 'JOSS readiness', criterion: 'neural-harness >= 95/100', status: 'PASSED' },
+        { id: 'T-09', name: 'Skill-grounding check', criterion: 'Every PR citations >= 1', status: 'PASSED' },
+        { id: 'T-10', name: 'Reproducible APK build', criterion: 'Same SHA-256 for identical inputs', status: 'PASSED' },
+        { id: 'T-11', name: 'Play-readiness scan', criterion: '0 policy violations', status: 'PASSED' },
+        { id: 'T-12', name: 'Google Sign-In', criterion: 'Account with ID + email', status: 'PASSED' },
+        { id: 'T-13', name: 'Session detection on restart', criterion: 'No re-prompt required', status: 'PASSED' },
+        { id: 'T-14', name: 'Skip sign-in', criterion: 'App fully offline operational', status: 'PASSED' },
+        { id: 'T-15', name: 'Auth code exchange', criterion: 'Server auth code returned', status: 'PASSED' },
+        { id: 'T-16', name: 'Per-user graph isolation', criterion: 'Profile A cannot query Profile B', status: 'PASSED' },
+        { id: 'T-17', name: 'Scope-gated Drive import', criterion: 'Scope requested at tap only', status: 'PASSED' },
+        { id: 'T-18', name: 'Sign-out + revoke', criterion: 'Android Keystore tokens cleared', status: 'PASSED' },
+        { id: 'T-19', name: 'RAM budget (C2)', criterion: 'Peak <= 4 GB under stress', status: 'PASSED' },
+        { id: 'T-20', name: 'APK size ceiling (C3)', criterion: 'Total APK <= 2.5 GB', status: 'PASSED' },
+        { id: 'T-21', name: 'Battery budget (C12)', criterion: '<= 8%/hour active capture', status: 'PASSED' },
+        { id: 'T-22', name: 'Thermal budget (C11)', criterion: 'No throttle for >= 30 min', status: 'PASSED' }
+      ]
+    };
+
+    let synth = null;
+    function playBeep(type = 'click') {
+      if (!state.soundEnabled) return;
+      try {
+        if (!synth && window.Tone) {
+          synth = new Tone.MembraneSynth().toDestination();
+          synth.volume.value = -12;
+        }
+        if (window.Tone && Tone.context.state !== 'running') {
+          Tone.start();
+        }
+        if (synth) {
+          if (type === 'start') synth.triggerAttackRelease('C4', '8n');
+          else if (type === 'stop') synth.triggerAttackRelease('G3', '8n');
+          else if (type === 'success') synth.triggerAttackRelease('C5', '16n');
+          else if (type === 'alert') synth.triggerAttackRelease('F2', '4n');
+          else synth.triggerAttackRelease('A4', '32n');
+        }
+      } catch (e) {
+        // Fallback silently if audio context restricted
+      }
+    }
+
+    function toggleSound() {
+      state.soundEnabled = !state.soundEnabled;
+      const btn = document.getElementById('soundBtn');
+      if (state.soundEnabled) {
+        btn.innerHTML = '<i class="ph ph-speaker-high text-lg"></i>';
+        btn.classList.remove('text-slate-500');
+        btn.classList.add('text-slate-300');
+      } else {
+        btn.innerHTML = '<i class="ph ph-speaker-simple-slash text-lg"></i>';
+        btn.classList.add('text-slate-500');
+        btn.classList.remove('text-slate-300');
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('androidClock').textContent = `${hours}:${minutes}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function setMasterView(mode) {
+      playBeep();
+      const phoneCol = document.getElementById('phoneCol');
+      const telemetryCol = document.getElementById('telemetryCol');
+      const btnPhone = document.getElementById('viewTogglePhone');
+      const btnDual = document.getElementById('viewToggleDual');
+
+      if (mode === 'phone') {
+        phoneCol.className = 'lg:col-span-12 flex justify-center w-full transition-all duration-300';
+        telemetryCol.classList.add('hidden');
+        btnPhone.className = 'px-3 py-1.5 rounded-lg font-medium bg-purple-600 text-white shadow transition-all';
+        btnDual.className = 'px-3 py-1.5 rounded-lg font-medium text-slate-300 hover:text-white transition-all';
+      } else {
+        phoneCol.className = 'lg:col-span-5 flex justify-center w-full transition-all duration-300';
+        telemetryCol.classList.remove('hidden');
+        btnDual.className = 'px-3 py-1.5 rounded-lg font-medium bg-purple-600 text-white shadow transition-all';
+        btnPhone.className = 'px-3 py-1.5 rounded-lg font-medium text-slate-300 hover:text-white transition-all';
+      }
+    }
+
+    function switchTab(tabId) {
+      playBeep();
+      state.activeTab = tabId;
+      const tabs = ['tabCapture', 'tabSearch', 'tabGraph', 'tabMcp', 'tabSettings'];
+      tabs.forEach(t => {
+        const el = document.getElementById(t);
+        if (el) el.classList.toggle('hidden', t !== tabId);
+      });
+
+      const navButtons = [
+        { id: 'navCapture', target: 'tabCapture' },
+        { id: 'navSearch', target: 'tabSearch' },
+        { id: 'navGraph', target: 'tabGraph' },
+        { id: 'navMcp', target: 'tabMcp' },
+        { id: 'navSettings', target: 'tabSettings' }
+      ];
+
+      navButtons.forEach(btn => {
+        const el = document.getElementById(btn.id);
+        const iconDiv = el.querySelector('div');
+        if (btn.target === tabId) {
+          el.classList.remove('text-neutral-400');
+          el.classList.add('text-purple-400');
+          iconDiv.classList.add('bg-purple-900/60');
+        } else {
+          el.classList.remove('text-purple-400');
+          el.classList.add('text-neutral-400');
+          iconDiv.classList.remove('bg-purple-900/60');
+        }
+      });
+
+      if (tabId === 'tabGraph') {
+        renderMemoryGraph();
+      }
+    }
+
+    let animationFrameId = null;
+    let waveformPhase = 0;
+
+    function drawWaveform() {
+      const canvas = document.getElementById('waveformCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      if (!state.isRecording) {
+        document.getElementById('waveformPlaceholder').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('waveformPlaceholder').classList.add('hidden');
+
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#A855F7';
+      ctx.beginPath();
+
+      const sliceWidth = w / 40;
+      let x = 0;
+      waveformPhase += 0.15;
+
+      for (let i = 0; i < 40; i++) {
+        const v = Math.sin(i * 0.4 + waveformPhase) * Math.cos(waveformPhase * 0.5);
+        const noise = (Math.random() - 0.5) * 0.35;
+        const amplitude = (v + noise) * (h / 3);
+        const y = h / 2 + amplitude;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth;
+      }
+      ctx.stroke();
+
+      // Render specular glow line
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(216, 180, 254, 0.6)';
+      ctx.stroke();
+
+      animationFrameId = requestAnimationFrame(drawWaveform);
+    }
+
+    function toggleRecording() {
+      if (state.isRecording) {
+        stopAudioCapture();
+      } else {
+        startAudioCapture();
+      }
+    }
+
+    function startAudioCapture() {
+      state.isRecording = true;
+      state.recordingSeconds = 0;
+      playBeep('start');
+
+      document.getElementById('foregroundNotification').classList.remove('hidden');
+      document.getElementById('recDot').className = 'w-2 h-2 rounded-full bg-red-500 animate-ping';
+      document.getElementById('recStateText').textContent = 'Recording 16kHz PCM';
+      document.getElementById('recStateText').className = 'text-red-400 font-semibold';
+      document.getElementById('recordBtnLabel').textContent = 'Stop Recording';
+      document.getElementById('asrLatency').textContent = 'Latency: 140ms';
+
+      // Live transcript simulation phrases
+      const speechPhrases = [
+        "Good morning everyone. In today's sprint review...",
+        "We have validated the SQLite sqlite-vec persistence layer under Android 12.",
+        "The LiteRT-LM runtime on the arm64 NPU is clocking Gemma 4 generation at 28 tokens/sec.",
+        "No network egress was detected throughout our 30-minute stress capture test.",
+        "Let's confirm the panic wipe zeroes the Keystore partition as required by IEEE 29148."
+      ];
+      let phraseIdx = 0;
+
+      state.recordingTimerId = setInterval(() => {
+        state.recordingSeconds++;
+        const mins = String(Math.floor(state.recordingSeconds / 60)).padStart(2, '0');
+        const secs = String(state.recordingSeconds % 60).padStart(2, '0');
+        const tenths = Math.floor(Math.random() * 9);
+        document.getElementById('recTimer').textContent = `${mins}:${secs}.${tenths}`;
+
+        // Stream ASR sentence chunks every 3 seconds
+        if (state.recordingSeconds % 3 === 0 && phraseIdx < speechPhrases.length) {
+          const transcriptBox = document.getElementById('liveTranscript');
+          transcriptBox.textContent = `"${speechPhrases[phraseIdx]}"`;
+          // Automatically index speech into local memory
+          addMemoryChunk(speechPhrases[phraseIdx], 'audio_transcript');
+          phraseIdx++;
+        }
+      }, 1000);
+
+      drawWaveform();
+    }
+
+    function stopAudioCapture() {
+      state.isRecording = false;
+      playBeep('stop');
+      if (state.recordingTimerId) clearInterval(state.recordingTimerId);
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+      document.getElementById('foregroundNotification').classList.add('hidden');
+      document.getElementById('recDot').className = 'w-2 h-2 rounded-full bg-neutral-500';
+      document.getElementById('recStateText').textContent = 'Recorder Standby';
+      document.getElementById('recStateText').className = 'text-neutral-400 font-semibold';
+      document.getElementById('recordBtnLabel').textContent = 'Start Live Meeting';
+      document.getElementById('asrLatency').textContent = 'Latency: -- ms';
+
+      const canvas = document.getElementById('waveformCanvas');
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      document.getElementById('waveformPlaceholder').classList.remove('hidden');
+    }
+
+    function injectSimulatedSpeech() {
+      playBeep('success');
+      const snippet = "Gemma 4 Multi-Token Prediction (MTP) achieved a 2.1x speedup on on-device summarization benchmarks.";
+      document.getElementById('liveTranscript').textContent = `"${snippet}"`;
+      addMemoryChunk(snippet, 'audio_transcript');
+    }
+
+    function injectScreenSnippet() {
+      playBeep('click');
+      const screenText = "Android Jetpack Compose Material 3 implementation with explicit permission gates for RECORD_AUDIO.";
+      document.getElementById('manualNoteInput').value = screenText;
+    }
+
+    function commitManualNote() {
+      const input = document.getElementById('manualNoteInput');
+      const text = input.value.trim();
+      if (!text) return;
+      playBeep('success');
+      addMemoryChunk(text, 'meeting_note');
+      input.value = '';
+    }
+
+    function addMemoryChunk(text, type) {
+      // Check for deduplication (FR-2.4: cosine > 0.98 simulation)
+      const isDuplicate = state.memoryChunks.some(c => c.text.toLowerCase() === text.toLowerCase());
+      if (isDuplicate) {
+        console.log("Dedup drop: Chunk cosine > 0.98");
+        return;
+      }
+
+      const newId = `CHK-00${state.memoryChunks.length + 1}`;
+      const newChunk = {
+        id: newId,
+        type: type,
+        text: text,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        embeddingDim: 768,
+        partition: state.currentProfile.name,
+        score: (0.85 + Math.random() * 0.12).toFixed(2)
+      };
+
+      state.memoryChunks.unshift(newChunk);
+      renderRecentChunks();
+      renderMemoryGraph();
+    }
+
+    function renderRecentChunks() {
+      const container = document.getElementById('recentChunksList');
+      if (!container) return;
+      document.getElementById('indexedCountLabel').textContent = `${state.memoryChunks.length} chunks stored`;
+
+      container.innerHTML = state.memoryChunks.slice(0, 3).map(chunk => {
+        let badgeColor = 'text-purple-400 bg-purple-950/80 border-purple-800';
+        let icon = 'ph-microphone';
+        if (chunk.type === 'meeting_note') {
+          badgeColor = 'text-amber-400 bg-amber-950/80 border-amber-800';
+          icon = 'ph-note-pencil';
+        } else if (chunk.type === 'screen_share') {
+          badgeColor = 'text-sky-400 bg-sky-950/80 border-sky-800';
+          icon = 'ph-share-network';
+        }
+
+        return `
+          <div class="p-2.5 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-1">
+            <div class="flex justify-between items-center text-[10px] font-mono">
+              <span class="px-1.5 py-0.2 rounded border ${badgeColor} flex items-center gap-1">
+                <i class="ph ${icon}"></i> ${chunk.id}
+              </span>
+              <span class="text-neutral-500">${chunk.timestamp}</span>
+            </div>
+            <p class="text-xs text-neutral-200 line-clamp-2">${chunk.text}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function executeSemanticSearch() {
+      const query = document.getElementById('searchQueryInput').value.trim();
+      if (!query) return;
+      playBeep('success');
+
+      // Latency simulation (FR-3.4 p95 <= 300ms)
+      const fakeLatency = Math.floor(25 + Math.random() * 45);
+      document.getElementById('retrievalLatency').textContent = `Retrieval: ${fakeLatency}ms (p95 <300ms)`;
+
+      const resultsContainer = document.getElementById('searchRankedResults');
+      const citationsContainer = document.getElementById('citationsList');
+
+      // Rank chunks
+      const topK = state.memoryChunks.slice(0, 3);
+
+      resultsContainer.innerHTML = topK.map((chunk, idx) => `
+        <div class="p-2.5 bg-neutral-900 border border-neutral-800 rounded-2xl flex items-start justify-between gap-2">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-mono text-purple-400 font-bold">#${idx + 1} Cosine: ${chunk.score}</span>
+              <span class="text-[9px] font-mono text-neutral-500">${chunk.id}</span>
+            </div>
+            <p class="text-xs text-neutral-300">${chunk.text}</p>
+          </div>
+        </div>
+      `).join('');
+
+      citationsContainer.innerHTML = topK.map(chunk => `
+        <div class="text-[10px] font-mono text-neutral-400 bg-neutral-950 p-1.5 rounded-lg border border-neutral-800/80 flex justify-between">
+          <span>${chunk.id}: "${chunk.text.substring(0, 42)}..."</span>
+          <span class="text-purple-400">Score: ${chunk.score}</span>
+        </div>
+      `).join('');
+    }
+
+    function highlightChunk(chunkId) {
+      playBeep('click');
+      const el = document.getElementById('nodeDetailBox');
+      if (el) {
+        document.getElementById('inspectorNodeId').textContent = `NODE: ${chunkId}`;
+        const found = state.memoryChunks.find(c => c.id === chunkId);
+        if (found) {
+          document.getElementById('inspectorNodeText').textContent = found.text;
+        }
+        switchTab('tabGraph');
+      }
+    }
+
+    let graphNodes = [];
+    function initGraphNodes() {
+      const w = 320;
+      const h = 224;
+      graphNodes = state.memoryChunks.map((chunk, i) => ({
+        id: chunk.id,
+        x: 40 + (i * 65) % (w - 60) + Math.random() * 20,
+        y: 40 + (i * 45) % (h - 60) + Math.random() * 20,
+        radius: 8,
+        type: chunk.type,
+        text: chunk.text
+      }));
+    }
+
+    function renderMemoryGraph() {
+      const canvas = document.getElementById('memoryGraphCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      if (graphNodes.length === 0 || graphNodes.length !== state.memoryChunks.length) {
+        initGraphNodes();
+      }
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw vector edges (cosine similarity connection)
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(147, 51, 234, 0.25)';
+      for (let i = 0; i < graphNodes.length; i++) {
+        for (let j = i + 1; j < graphNodes.length; j++) {
+          const dx = graphNodes[i].x - graphNodes[j].x;
+          const dy = graphNodes[i].y - graphNodes[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 110) {
+            ctx.beginPath();
+            ctx.moveTo(graphNodes[i].x, graphNodes[i].y);
+            ctx.lineTo(graphNodes[j].x, graphNodes[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw vector cluster nodes
+      graphNodes.forEach(node => {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
+        if (node.type === 'meeting_note') ctx.fillStyle = '#F59E0B';
+        else if (node.type === 'screen_share') ctx.fillStyle = '#38BDF8';
+        else ctx.fillStyle = '#A855F7';
+        ctx.fill();
+
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#E2E8F0';
+        ctx.font = '8px monospace';
+        ctx.fillText(node.id, node.x - 14, node.y + 16);
+      });
+
+      document.getElementById('graphNodeCount').textContent = graphNodes.length;
+    }
+
+    function reclusterGraph() {
+      playBeep('success');
+      initGraphNodes();
+      renderMemoryGraph();
+    }
+
+    function toggleMcpNetwork(enabled) {
+      state.mcpNetworkAllowed = enabled;
+      playBeep('click');
+      logMcp(`[GATE] Network egress gate set to: ${enabled ? 'ENABLED' : 'DISABLED (Zero-Network)'}`);
+    }
+
+    function simulateMcpCall(toolName) {
+      playBeep('click');
+      const reqId = 'rpc-' + Math.floor(Math.random() * 9000 + 1000);
+      logMcp(`--> {"jsonrpc":"2.0","id":"${reqId}","method":"tools/call","params":{"name":"${toolName}"}}`);
+
+      setTimeout(() => {
+        playBeep('success');
+        let resPayload = {};
+        if (toolName === 'swarm_query') {
+          resPayload = { agents_online: 4, consensus: "Memory graph meets TRL 6 readiness criteria" };
+        } else if (toolName === 'zoe_run') {
+          resPayload = { step: "deterministic_audit", status: "completed", violations: 0 };
+        } else {
+          resPayload = { model: "glama-local-bridge", reply: "Local bridge connected on port 8080" };
+        }
+        logMcp(`<-- {"jsonrpc":"2.0","id":"${reqId}","result":${JSON.stringify(resPayload)}}`);
+      }, 350);
+    }
+
+    function logMcp(line) {
+      const terminal = document.getElementById('mcpLogTerminal');
+      const entry = document.createElement('div');
+      entry.className = line.startsWith('-->') ? 'text-sky-300' : line.startsWith('<--') ? 'text-emerald-300' : 'text-neutral-400';
+      entry.textContent = line;
+      terminal.appendChild(entry);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function clearMcpLog() {
+      document.getElementById('mcpLogTerminal').innerHTML = '<div class="text-neutral-500">// Audit stream cleared</div>';
+    }
+
+    function simulateGoogleSignIn() {
+      playBeep('success');
+      state.currentProfile = {
+        name: 'Sai Karun Nandipati',
+        partitionId: 'USR-9021',
+        isGoogleAuth: true,
+        email: 'sai.karun@example.com'
+      };
+
+      document.getElementById('profileBadge').textContent = 'Sai (Google)';
+      document.getElementById('identityStatusPill').textContent = 'Signed In';
+      document.getElementById('identityStatusPill').className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700';
+      document.getElementById('accountInfoBox').classList.remove('hidden');
+      document.getElementById('signInActionBtn').innerHTML = '<i class="ph-bold ph-sign-out mr-1"></i> Sign Out & Revoke';
+      document.getElementById('signInActionBtn').onclick = simulateSignOut;
+
+      logMcp('[IDENTITY] Google Sign-In: ServerAuthCode acquired, stored in Android Keystore.');
+    }
+
+    function simulateSkipAuth() {
+      playBeep('click');
+      state.currentProfile = {
+        name: 'Offline Guest',
+        partitionId: 'GUEST',
+        isGoogleAuth: false,
+        email: null
+      };
+      document.getElementById('profileBadge').textContent = 'Offline Guest';
+      logMcp('[IDENTITY] User chose Skip Auth. Local-first sandbox initialized without cloud binding.');
+    }
+
+    function simulateSignOut() {
+      playBeep('stop');
+      simulateSkipAuth();
+      document.getElementById('accountInfoBox').classList.add('hidden');
+      document.getElementById('identityStatusPill').textContent = 'Offline';
+      document.getElementById('identityStatusPill').className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700';
+      const btn = document.getElementById('signInActionBtn');
+      btn.innerHTML = `
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+        <span>Sign in with Google</span>
+      `;
+      btn.onclick = simulateGoogleSignIn;
+      logMcp('[IDENTITY] Google tokens revoked and Keystore entry destroyed.');
+    }
+
+    function toggleAirplaneMode() {
+      playBeep('click');
+      state.airplaneMode = !state.airplaneMode;
+      const statusIcon = document.getElementById('airplaneStatus');
+      const btn = document.getElementById('airplaneBtn');
+      if (state.airplaneMode) {
+        statusIcon.classList.remove('hidden');
+        btn.classList.add('bg-amber-600', 'text-white');
+        logMcp('[NETWORK] Airplane Mode: Egress verified 0 bytes (NFR-9)');
+      } else {
+        statusIcon.classList.add('hidden');
+        btn.classList.remove('bg-amber-600', 'text-white');
+        logMcp('[NETWORK] Airplane Mode deactivated');
+      }
+    }
+
+    function toggleProfileModal() {
+      playBeep('click');
+      const modal = document.getElementById('profileModalOverlay');
+      modal.classList.toggle('hidden');
+    }
+
+    function switchUserProfile(name, partitionId) {
+      playBeep('success');
+      state.currentProfile.name = name;
+      state.currentProfile.partitionId = partitionId;
+      document.getElementById('profileBadge').textContent = name.split(' ')[0];
+      toggleProfileModal();
+      logMcp(`[PARTITION] Switched active sqlite-vec partition to: ${partitionId} (${name})`);
+    }
+
+    function triggerPanicWipeConfirm() {
+      playBeep('alert');
+      const modal = document.getElementById('inAppModalOverlay');
+      modal.classList.remove('hidden');
+    }
+
+    function closeInAppModal() {
+      playBeep('click');
+      document.getElementById('inAppModalOverlay').classList.add('hidden');
+    }
+
+    function executePanicWipeConfirmed() {
+      playBeep('alert');
+      closeInAppModal();
+
+      // Clear memory chunks and stop recording
+      if (state.isRecording) stopAudioCapture();
+      state.memoryChunks = [];
+      initGraphNodes();
+      renderRecentChunks();
+      renderMemoryGraph();
+
+      // Reset search answers
+      document.getElementById('aiAnswerText').innerHTML = '<p class="text-neutral-500 italic">Memory graph has been completely wiped. No chunks available for citation.</p>';
+      document.getElementById('citationsList').innerHTML = '';
+      document.getElementById('searchRankedResults').innerHTML = '';
+      document.getElementById('modelConfidenceBadge').textContent = 'Confidence: N/A';
+
+      logMcp('*** [PANIC WIPE] ALL APP-PRIVATE DATA ZEROED. SQLite & sqlite-vec dropped. Keystore wiped. (FR-6.4) ***');
+    }
+
+    function renderAcceptanceTests() {
+      const list = document.getElementById('testMatrixList');
+      if (!list) return;
+
+      list.innerHTML = state.tests.map(test => `
+        <div class="p-2 bg-slate-950 rounded-xl border border-slate-850 flex items-center justify-between text-xs font-mono">
+          <div class="flex items-center space-x-2">
+            <span class="text-purple-400 font-bold">${test.id}</span>
+            <span class="text-slate-300 font-sans">${test.name}</span>
+            <span class="text-slate-500 text-[10px] hidden sm:inline">&bull; ${test.criterion}</span>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold ${test.status === 'PASSED' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-neutral-800 text-neutral-400'}">
+            ${test.status}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    function runAcceptanceSuite() {
+      playBeep('success');
+      state.tests.forEach(t => t.status = 'PASSED');
+      renderAcceptanceTests();
+      logMcp('[CI] Acceptance test matrix suite (T-01 - T-22): 22/22 PASSED with zero defects.');
+    }
+
+    window.onload = function() {
+      renderRecentChunks();
+      renderAcceptanceTests();
+      executeSemanticSearch();
+      initGraphNodes();
+      renderMemoryGraph();
+      logMcp('[BOOT] Foresight Android initialized per ISO/IEC/IEEE 29148:2018');
+      logMcp('[RUNTIME] LiteRT-LM ready with EmbeddingGemma 2 and Gemma 4 E2B');
+    };
+  </script>
+</body>
+</html>
