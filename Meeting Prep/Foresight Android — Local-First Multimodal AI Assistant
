@@ -1,0 +1,431 @@
+Software Requirements Specification (SRS)
+
+Foresight Android — Local-First Multimodal AI Assistant
+
+Document Version: 3.0 (IEEE 29148 Conformant)
+Status: Consolidated Draft
+Author: Sai Karun Nandipati
+Date: 2026-10-14
+Standard: ISO/IEC/IEEE 29148:2018
+Supersedes: v2.0
+
+---
+
+1. Introduction
+
+1.1 Purpose
+
+This document specifies the requirements for Foresight Android — a local-first, multimodal AI assistant for Android, modeled on Google AI Edge Foresight. The SRS is written in conformance with ISO/IEC/IEEE 29148:2018 and defines requirements that are necessary, unambiguous, verifiable, feasible, and singular .
+
+1.2 Scope
+
+Foresight Android will:
+
+· Capture live meeting audio and index notes, documents, and media on-device.
+· Build a unified multimodal memory graph using EmbeddingGemma 2 embeddings.
+· Provide semantic search and local LLM-generated answers (Gemma 4 via LiteRT-LM).
+· Expose an MCP client bridge to s-ai-swarm, zoe-mcp, and glama-gateway.
+· Offer optional Google Sign-In for identity and per-user profile partitioning.
+· Ship as a signed APK built through an agent-assisted, skill-grounded pipeline using Google's android/skills.
+
+Out of scope for v1.0: cloud sync, iOS, multi-user collaboration, wearable/XR extensions.
+
+1.3 Intended Audience
+
+· Developer: Sai Karun Nandipati — architecture, agent orchestration, validation.
+· Research reviewers: Agentic AI / on-device ML.
+· JOSS reviewers: Open-source publication track.
+· End user: Privacy-conscious Android users.
+
+1.4 Definitions & Acronyms
+
+Term Meaning
+Skill A SKILL.md file from android/skills grounding an LLM agent.
+Agent LLM-driven coding assistant (Claude Code, Codex, Gemini, Antigravity).
+Embedding Dense vector representation in a shared semantic space.
+Memory Graph Persistent embedding + metadata store (samvit, celebrum).
+MCP Model Context Protocol — JSON-RPC tool surface.
+LiteRT-LM Google's on-device LLM runtime (CPU/GPU/NPU, MTP enabled).
+TRL Technology Readiness Level, 1–9.
+T0–T6 Conformance tiers (s-ai-soulbot).
+VISION Accuracy marker (samvit).
+SSRF Server-Side Request Forgery (mitigated in s-ai-update).
+MTP Multi-Token Prediction — LiteRT-LM speedup (up to 2.2×).
+IEEE 29148 ISO/IEC/IEEE 29148:2018 — Requirements engineering standard.
+
+1.5 References
+
+1. Google AI Edge Foresight — developers.google.com/edge/foresight
+2. android/skills — github.com/android/skills (Apache 2.0)
+3. ISO/IEC/IEEE 29148:2018 — Requirements engineering 
+4. Google Sign-In for Android — developer.android.com/identity/sign-in
+5. karun99/samvit, celebrum, zoe, s-ai-update, neural-harness, glama-mcp, s-ai-soulbot
+
+---
+
+2. Product Overview
+
+2.1 Product Perspective
+
+Foresight Android is a standalone Android application sharing architectural DNA with the karun99 portfolio. Its build pipeline is agent-driven and skill-grounded, and its runtime is local-first with optional identity.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                  Agent-Driven Build Loop                     │
+│                                                              │
+│   android/skills  ──►  Agent  ──►  APK  ──►  neural-harness  │
+│   (SKILL.md)          (code)      (output)   (validation)    │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│                    Android Application                       │
+│                                                              │
+│  Capture → Embedding → Memory Graph → Local LLM → MCP Bridge │
+│                                                              │
+│  ┌────────────────┐                                          │
+│  │ Google Sign-In │──► Per-user memory graph partitioning    │
+│  │   (optional)   │──► Server auth code → future desktop sync│
+│  └────────────────┘                                          │
+└──────────────────────────────────────────────────────────────┘
+```
+
+2.2 Product Functions (High-Level)
+
+· F1 Live meeting capture (on-device ASR).
+· F2 Multimodal indexing (text, image, audio, video).
+· F3 Semantic search over the memory graph.
+· F4 Local summarization and Q&A.
+· F5 MCP tool invocation via stdio/localhost bridge.
+· F6 Consent-gated recording.
+· F7 Zero-network mode (airplane-mode full function).
+· F8 Agent-assisted, skill-grounded build.
+· F9 Optional Google Sign-In for identity and profile partitioning.
+
+2.3 User Characteristics
+
+· Privacy-conscious professional or researcher.
+· Expects sub-second query response after indexing.
+· May not be technical; UI hides model internals.
+· May use a shared device with multiple profiles.
+
+2.4 Constraints
+
+Per IEEE 29148, constraints define limitations on the design and implementation :
+
+ID Constraint Verification Method
+C1 Target: Android 12+ (API 31), arm64-v8a only for v1.0. Build config inspection
+C2 Peak RAM budget: 4 GB. dumpsys meminfo during stress test
+C3 APK size ceiling: 2.5 GB. APK Analyzer
+C4 No Google Play Services dependency for core function. Runtime permission audit
+C5 All personal data in app-private storage. File system inspection
+C6 No telemetry egress by default. Packet capture
+C7 All Android code generation must be grounded in android/skills. SKILLS.lock verification
+C8 Skills installed via android skills add --all. CI script check
+C9 Skill guidance validated by neural-harness. Harness report
+C10 Google Sign-In is optional; "Skip" always available. UI test
+C11 Thermal budget: sustained operation without throttling for ≥30 min. Thermal profiler
+C12 Battery budget: ≤8% per hour of active capture. Battery historian
+
+2.5 Assumptions and Dependencies
+
+ID Assumption/Dependency
+A1 Device has ≥6 GB RAM, ≥8 GB free storage.
+A2 User grants RECORD_AUDIO and scoped storage.
+A3 Quantized embedding + LLM models are redistributable.
+A4 Agent environment has Android CLI, Claude Code / Codex / Gemini installed.
+A5 A web OAuth client ID exists in Google Cloud Console for server auth code flow.
+
+---
+
+3. Specified Requirements
+
+3.1 Functional Requirements
+
+Requirements are stated in singular form per IEEE 29148 .
+
+FR-1 Capture
+
+ID Requirement Priority Verification
+FR-1.1 The system shall capture audio in 16 kHz mono PCM format. Must Audio file inspection
+FR-1.2 The system shall perform streaming ASR with latency ≤2 seconds. Must Timing test
+FR-1.3 The system shall allow the user to attach screen text via share intent. Should UI test
+FR-1.4 The system shall allow manual note entry during capture. Must UI test
+FR-1.5 The system shall display a persistent foreground notification while recording. Must Notification inspection
+
+FR-2 Indexing
+
+ID Requirement Priority Verification
+FR-2.1 The system shall embed captured text within 500 ms per paragraph. Must Timing benchmark
+FR-2.2 The system shall embed image and video-frame content. Should Feature test
+FR-2.3 The system shall store embeddings in the memory graph. Must Database inspection
+FR-2.4 The system shall deduplicate near-identical chunks (cosine > 0.98). Should Dedup test
+FR-2.5 The system shall support incremental indexing. Must Indexing test
+
+FR-3 Search & Retrieval
+
+ID Requirement Priority Verification
+FR-3.1 The system shall accept natural-language queries. Must UI test
+FR-3.2 The system shall return top-k results ranked by cosine similarity. Must Query test
+FR-3.3 The system shall support time-range filters. Should Filter test
+FR-3.4 The system shall return p95 query latency ≤300 ms for ≤1M chunks. Must Performance benchmark
+
+FR-4 Generation
+
+ID Requirement Priority Verification
+FR-4.1 The system shall synthesize answers using a local LLM. Must Generation test
+FR-4.2 The system shall cite source chunk IDs in every answer. Must Output inspection
+FR-4.3 The system shall refuse to answer if confidence < threshold. Should Confidence test
+FR-4.4 The system shall run LLM inference in a worker thread. Must Thread inspection
+
+FR-5 MCP Bridge
+
+ID Requirement Priority Verification
+FR-5.1 The system shall connect to stdio MCP bridges. Should Connection test
+FR-5.2 The system shall invoke swarm_query, zoe_run, glama_chat_completion. Should Tool call test
+FR-5.3 The system shall log every tool call. Must Log inspection
+FR-5.4 The system shall gate network tool calls behind explicit user toggle. Must Toggle test
+
+FR-6 Consent & Governance
+
+ID Requirement Priority Verification
+FR-6.1 The system shall require affirmative consent before first recording. Must Consent flow test
+FR-6.2 The system shall allow per-session consent revocation. Must Revocation test
+FR-6.3 The system shall implement T0–T6 conformance tiers. Should Tier audit
+FR-6.4 The system shall provide a panic wipe that deletes the memory graph. Must Wipe test
+
+FR-7 Validation
+
+ID Requirement Priority Verification
+FR-7.1 The system shall include a reproducible evaluation harness. Must Harness run
+FR-7.2 The system shall report a VISION accuracy marker. Should Marker output
+FR-7.3 The system shall run 14-check guardrails before release. Should Guardrail output
+
+FR-8 Agent-Assisted Build
+
+ID Requirement Priority Verification
+FR-8.1 The build environment shall install android/skills via android skills add --all. Must CI script check
+FR-8.2 The system shall require device-ai skill for on-device inference work. Must Skill audit
+FR-8.3 The system shall require security skill for Keystore and sandboxing. Must Skill audit
+FR-8.4 The system shall require testing-setup skill for CI parity. Must Skill audit
+FR-8.5 Generated code shall be reviewed against skill guidance before merge. Must PR checklist
+FR-8.6 Skills shall be pinned by commit SHA in SKILLS.lock. Must Lock file inspection
+FR-8.7 neural-harness shall score generated code against relevant SKILL.md. Should Score output
+FR-8.8 The APK shall be built via Android CLI and agent plugin. Must Build log
+FR-8.9 The build shall be reproducible from make apk on a clean checkout. Must Build reproducibility test
+
+FR-9 Google Sign-In (Optional)
+
+ID Requirement Priority Verification
+FR-9.1 The system shall offer Google Sign-In on first launch. Should UI test
+FR-9.2 The system shall use DEFAULT_SIGN_IN with minimal scopes. Should Config inspection
+FR-9.3 The system shall check for existing session in onStart. Should Lifecycle test
+FR-9.4 The system shall display the canonical SignInButton. Should UI inspection
+FR-9.5 The system shall request additional scopes only at action time. Should Scope test
+FR-9.6 The system shall request serverAuthCode for future sync. Should Auth code test
+FR-9.7 The system shall store tokens with Android Keystore. Must Keystore inspection
+FR-9.8 The system shall allow sign-out and revoke access. Must Settings test
+FR-9.9 The system shall never block startup on sign-in. Must Skip test
+FR-9.10 The system shall partition memory graph per signed-in account. Should Isolation test
+FR-9.11 The system shall request Drive scope only at import tap. Should Scope timing test
+
+3.2 Quality of Service (Non-Functional) Requirements
+
+Performance
+
+ID Requirement Threshold Verification
+NFR-1 Cold start time ≤4 s on Pixel 6-class adb shell am start -W
+NFR-2 Sustained indexing duration ≥30 min without throttling Thermal profiler
+NFR-3 Query latency (p95) ≤300 ms for ≤1M chunks Benchmark
+NFR-4 Embed latency (p95) ≤500 ms per paragraph Benchmark
+
+Resource Constraints
+
+ID Requirement Threshold Verification
+NFR-5 Peak RAM usage ≤4 GB dumpsys meminfo
+NFR-6 APK size ≤2.5 GB APK Analyzer
+NFR-7 Battery consumption ≤8% per hour active capture Battery Historian
+NFR-8 Thermal throttling threshold No throttle for ≥30 min Thermal profiler
+
+Security & Privacy
+
+ID Requirement Threshold Verification
+NFR-9 Network egress in airplane mode 0 bytes Packet capture
+NFR-10 Data encryption at rest All personal data Keystore audit
+NFR-11 SSRF protection Per s-ai-update Security scan
+NFR-12 Token storage security Keystore-backed Keystore inspection
+
+Reliability & Maintainability
+
+ID Requirement Threshold Verification
+NFR-13 Memory graph survives process death WAL mode enabled Crash test
+NFR-14 Line coverage on tracked modules ≥80% Coverage report
+NFR-15 APK hash stability Stable for same skill+source SHA Build reproducibility test
+NFR-16 Play policy compliance 0 violations Play Console scan
+
+3.3 External Interface Requirements
+
+3.3.1 User Interfaces
+
+· Recording screen: waveform, live transcript, note field.
+· Search screen: query bar, filter chips, result cards.
+· Answer screen: summary + cited chunks.
+· Settings: model selection, k, temperature, consent tiers, MCP endpoints, sign-out/revoke.
+· Trust dashboard: TRL badge, VISION marker, skill-compliance score, last validation run.
+
+3.3.2 Hardware Interfaces
+
+· Microphone (RECORD_AUDIO).
+· NNAPI / GPU delegate (optional acceleration).
+· Storage (app-private + optional SAF for imports).
+
+3.3.3 Software Interfaces
+
+· LiteRT-LM for model runtime (EmbeddingGemma 2, Gemma 4).
+· SQLite + sqlite-vec for vector storage.
+· Android CLI for skill management.
+· Claude Code / Codex / Gemini as build agents.
+· Google Play Services Auth (play-services-auth:21.3.0) for optional sign-in.
+· MCP over stdio or localhost HTTP.
+
+3.3.4 Communication Interfaces
+
+· None required for core function.
+· Optional localhost WebSocket to a desktop MCP host.
+· Optional HTTPS to backend for OAuth server auth code exchange.
+
+3.4 Design Constraints
+
+Per IEEE 29148, design constraints limit implementation choices :
+
+ID Constraint
+DC-1 Architecture shall use Kotlin + Jetpack Compose (Material 3).
+DC-2 Build shall use Gradle KTS with version catalog.
+DC-3 Modules shall be: :app, :core:capture, :core:embed, :core:memory, :core:llm, :core:mcp, :core:identity, :core:security, :core:validate.
+DC-4 EmbeddingGemma 2 shall be the retrieval model.
+DC-5 Gemma 4 E2B/E4B shall be the generation model via LiteRT-LM.
+DC-6 Memory graph shall use SQLite + sqlite-vec with WAL mode.
+
+---
+
+4. Verification and Validation
+
+4.1 Verification Methods
+
+Per IEEE 29148, each requirement shall have a defined verification method :
+
+Method Description
+Inspection Visual examination of code, config, or output.
+Analysis Mathematical or logical evaluation.
+Demonstration Operational test showing function works.
+Test Controlled execution with measured outcomes.
+
+4.2 Acceptance Test Matrix
+
+Test ID Description Pass Criterion Verification Method
+T-01 30-min capture 0 crashes, WER <15% Test
+T-02 1000-chunk indexing p95 embed <500 ms Test
+T-03 Query over 100k chunks p95 <300 ms, recall@8 >0.85 Test
+T-04 Airplane-mode run 0 bytes egress Test (packet capture)
+T-05 MCP call to zoe-mcp Correct JSON-RPC round-trip Test
+T-06 Panic wipe Graph unrecoverable Demonstration
+T-07 TRL Tracker action ≥TRL 6 on release Inspection
+T-08 JOSS readiness ≥95/100 on neural-harness Inspection
+T-09 Skill-grounding check Every PR references ≥1 SKILL.md Inspection
+T-10 Reproducible APK build Same SHA-256 for identical inputs Test
+T-11 Play-readiness scan 0 policy violations Inspection
+T-12 Google Sign-In Account with ID + email Test
+T-13 Session detection on restart No re-prompt Test
+T-14 Skip sign-in App fully offline Demonstration
+T-15 Auth code exchange Valid tokens returned Test
+T-16 Per-user graph isolation Profile A cannot query B Test
+T-17 Scope-gated Drive import Scope at import tap only Test
+T-18 Sign-out + revoke Tokens cleared Test
+T-19 RAM budget Peak ≤4 GB Test (dumpsys meminfo)
+T-20 APK size ≤2.5 GB Inspection (APK Analyzer)
+T-21 Battery budget ≤8%/hour Test (Battery Historian)
+T-22 Thermal budget No throttle ≥30 min Test (Thermal profiler)
+
+4.3 Code Validation Metrics
+
+Per software quality measurement standards, the following metrics shall be tracked :
+
+Metric Definition Target Tool
+Accuracy (TP + TN) / Total ≥0.85 neural-harness
+Precision TP / (TP + FP) ≥0.82 neural-harness
+Recall TP / (TP + FN) ≥0.80 neural-harness
+F1 Score 2 × (P × R) / (P + R) ≥0.85 neural-harness
+ROC-AUC Area under ROC curve ≥0.86 neural-harness
+MCC Matthews Correlation Coefficient ≥0.15 neural-harness
+Line Coverage Lines executed / Total lines ≥80% JaCoCo
+Cyclomatic Complexity Independent paths ≤10 per method Detekt
+Δ Accuracy Train vs test difference ≤0.10 neural-harness
+
+Skill Compliance Score:
+
+Metric Definition Target
+Skill Citation Rate PRs citing ≥1 SKILL.md / Total PRs 100%
+Skill Adherence Code matching skill guidance / Total reviewed ≥90%
+
+4.4 Traceability Matrix
+
+Req ID Source Design Code Module Test Status
+FR-1.1 Stakeholder DC-1 :core:capture T-01 Planned
+FR-2.1 Stakeholder DC-4 :core:embed T-02 Planned
+FR-3.4 Stakeholder DC-6 :core:memory T-03 Planned
+FR-4.1 Stakeholder DC-5 :core:llm T-03 Planned
+FR-6.4 Stakeholder DC-3 :core:security T-06 Planned
+FR-8.1 Stakeholder DC-3 Build config T-09 Planned
+FR-9.7 Stakeholder DC-3 :core:identity T-18 Planned
+NFR-5 Constraint DC-1 All modules T-19 Planned
+NFR-6 Constraint DC-1 Build config T-20 Planned
+NFR-7 Constraint DC-5 :core:llm T-21 Planned
+NFR-8 Constraint DC-5 :core:llm T-22 Planned
+
+---
+
+5. Appendices
+
+Appendix A — Threat Model (Outline)
+
+· SSRF, sandbox escape, model exfiltration.
+· OAuth token theft, scope escalation, cross-profile data leakage.
+· Thermal/battery exhaustion as DoS vector.
+
+Appendix B — T0–T6 Conformance Tiers (s-ai-soulbot)
+
+Appendix C — MCP Tool Schema Inventory (14 tools, 3 servers)
+
+Appendix D — Skill-to-Requirement Traceability Matrix
+
+Android Skill Covers FR/NFR Priority
+device-ai FR-1.2, FR-2.1, FR-2.2, FR-4.1, FR-5.1, FR-8.2 Critical
+security FR-2.3, FR-5.3, FR-5.4, FR-6.1–6.4, FR-9.7, FR-9.10, NFR-9–12 Critical
+testing-setup FR-7.1, FR-7.3, FR-8.4, FR-8.7, NFR-14 Critical
+devtools/android-cli FR-8.1, FR-8.6, FR-8.8, FR-8.9, NFR-15 Critical
+identity FR-9.1–9.6, FR-9.8, FR-9.11 Critical
+performance/r8-analyzer FR-2.5, FR-3.4, NFR-1, NFR-6 High
+profilers/android-profiler FR-4.4, NFR-2, NFR-7, NFR-8 High
+jetpack-compose FR-1.4, FR-3.1, NFR-14 High
+navigation FR-3.3 Medium
+system/edge-to-edge FR-1.3, FR-1.5 Medium
+camera/camerax FR-1.1 (pipeline pattern) Medium
+play NFR-16 Medium
+
+Appendix E — Resource Constraint Verification Procedures
+
+Constraint Procedure Pass Criterion
+C2 (RAM ≤4 GB) adb shell dumpsys meminfo <package> during 30-min stress test Peak PSS ≤4 GB
+C3 (APK ≤2.5 GB) APK Analyzer after release build Total size ≤2.5 GB
+C11 (Thermal) adb shell dumpsys thermalservice during 30-min indexing No severity ≥3
+C12 (Battery ≤8%/hr) Battery Historian over 1-hour capture session Discharge ≤8%
+
+---
+
+6. Why This SRS Makes the Build Easy
+
+1. IEEE 29148 conformance. Every requirement is necessary, unambiguous, verifiable, feasible, and singular .
+2. Grounding > guessing. Every FR maps to an android/skills skill.
+3. Explicit resource constraints. RAM, APK size, battery, and thermal budgets are quantified and verifiable.
+4. Code validation metrics. Accuracy, precision, recall, F1, ROC-AUC, MCC, and coverage are tracked .
+5. Traceability closed. Requirements → design → code → test matrix is maintained.
+6. Reproducibility. Pinned skills + deterministic make apk + stable APK hash
